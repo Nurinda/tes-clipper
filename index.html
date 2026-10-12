@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#00B2B1" />
+    <meta name="description" content="Potong video panjang jadi klip pendek dan edit langsung di browser. Video tidak diunggah ke server." />
+    <title>Clipper — kumparan</title>
+    <script>
+      try {
+        var t = JSON.parse(localStorage.getItem('clipper-settings') || '{}').state;
+        var dark = t && t.theme ? t.theme === 'gelap' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <footer><div class="wrap">© <span id="yr"></span> kumparan (nrm). Semua hak dilindungi.</div></footer>
+    <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

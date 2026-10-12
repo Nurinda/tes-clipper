@@ -1,0 +1,13 @@
+{
+  "name": "Clipper kumparan",
+  "short_name": "Clipper",
+  "description": "Potong video panjang jadi klip pendek, langsung dari browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F2FAFA",
+  "theme_color": "#00B2B1",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
