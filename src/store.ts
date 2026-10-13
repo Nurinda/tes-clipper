@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import type { Aspect, AnalysisOptions, Clip, ContentStyle, Fit, Project } from './types';
 import { analyzeVideo, STEP_LABELS, type StepId, type StepState } from './lib/analyze';
 import { makeClip } from './lib/clipDefaults';
+import { coverOf, pickCandidates } from './lib/cover';
+import { regenSubs } from './lib/subtitles';
 import { exportOne, zipResults, type ExportResult } from './lib/exporter';
 import type { ExportOptions } from './lib/ffargs';
 import { cancelFFmpeg } from './lib/ffmpeg';
@@ -116,6 +118,7 @@ interface AppState {
   jobs: Job[];
   exporting: boolean;
   ffStatus: string;
+  coverBusy: { done: number; total: number } | null;
 
   go: (v: View) => void;
   pickFile: (f: File) => Promise<void>;
@@ -139,6 +142,8 @@ interface AppState {
   downloadAll: () => Promise<void>;
   clearJobs: () => void;
   setFfStatus: (s: string) => void;
+  autoCovers: () => Promise<void>;
+  applyStyleToAll: (fromId: string) => void;
 }
 
 export function readVideoMeta(file: File): Promise<{ duration: number; w: number; h: number }> {
@@ -195,6 +200,7 @@ export const useApp = create<AppState>((set, get) => ({
   jobs: [],
   exporting: false,
   ffStatus: '',
+  coverBusy: null,
 
   go: (view) => set({ view }),
   setFfStatus: (ffStatus) => set({ ffStatus }),
@@ -246,6 +252,7 @@ export const useApp = create<AppState>((set, get) => ({
         pending: null, view: 'proyek', jobs: [],
       });
       await saveProject(project);
+      get().autoCovers();
       if (s.saveCopy && pending.file.size < 1.6e9) {
         saveFile(project.id, pending.file).then((ok) => {
           if (!ok) toast('Video terlalu besar untuk disimpan di browser. Saat membuka proyek ini lagi, kamu perlu memilih file videonya lagi.', 'info');
@@ -274,6 +281,7 @@ export const useApp = create<AppState>((set, get) => ({
         const m = await readVideoMeta(file);
         const url = setVideo(file, get().videoUrl);
         set({ project: p, file, videoUrl: url, video: { w: m.w, h: m.h }, needFile: false, selectedId: p.clips[0]?.id ?? null, past: [], future: [], view: 'proyek' });
+        get().autoCovers();
         return;
       } catch { /* jatuh ke minta file */ }
     }
@@ -291,6 +299,7 @@ export const useApp = create<AppState>((set, get) => ({
       }
       const url = setVideo(file, get().videoUrl);
       set({ file, videoUrl: url, video: { w: m.w, h: m.h }, needFile: false });
+      get().autoCovers();
       if (useSettings.getState().saveCopy && file.size < 1.6e9) saveFile(p.id, file);
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -431,4 +440,68 @@ export const useApp = create<AppState>((set, get) => ({
     downloadBlob(blob, `${slug(get().project?.name || 'klip')}-klip.zip`);
   },
   clearJobs: () => set({ jobs: [] }),
+
+  /** Pilih frame sampul terbaik untuk tiap klip yang belum punya, di latar belakang. */
+  autoCovers: async () => {
+    const st = get();
+    const file = st.file;
+    const project = st.project;
+    if (!file || !project || st.coverBusy) return;
+    const todo = project.clips.filter((c) => coverOf(c).time === null).map((c) => c.id);
+    if (!todo.length) return;
+    set({ coverBusy: { done: 0, total: todo.length } });
+    for (let i = 0; i < todo.length; i++) {
+      if (get().file !== file) break;
+      const clip = get().project?.clips.find((c) => c.id === todo[i]);
+      if (clip) {
+        try {
+          const best = (await pickCandidates(file, clip, 8))[0];
+          if (best) {
+            const cur = get().project;
+            if (cur) {
+              set({
+                project: {
+                  ...cur,
+                  clips: cur.clips.map((c) => {
+                    if (c.id !== clip.id) return c;
+                    const cv = coverOf(c);
+                    return { ...c, cover: { ...cv, time: best.t, focusX: best.fx ?? cv.focusX, focusY: best.fy ?? cv.focusY } };
+                  }),
+                },
+              });
+            }
+          }
+        } catch { /* lewati klip ini */ }
+      }
+      set({ coverBusy: { done: i + 1, total: todo.length } });
+    }
+    set({ coverBusy: null });
+  },
+
+  /** Salin gaya (rasio, subtitle, logo, warna, sampul) dari satu klip ke semua klip lain. */
+  applyStyleToAll: (fromId) => {
+    const { project } = get();
+    const src = project?.clips.find((c) => c.id === fromId);
+    if (!project || !src) return;
+    const sc = coverOf(src);
+    const clips = project.clips.map((c) => {
+      if (c.id === fromId) return c;
+      let subs = { ...c.subs, style: src.subs.style, font: src.subs.font, size: src.subs.size, color: src.subs.color, hlColor: src.subs.hlColor, position: src.subs.position };
+      if (project.transcript && !c.subs.edited && c.subs.maxWords !== src.subs.maxWords) {
+        subs = regenSubs(project.transcript, { ...c, subs: { ...subs, maxWords: src.subs.maxWords } });
+      }
+      const cc = coverOf(c);
+      return {
+        ...c,
+        aspect: src.aspect, fit: src.fit,
+        brightness: src.brightness, contrast: src.contrast, saturation: src.saturation,
+        fadeIn: src.fadeIn, fadeOut: src.fadeOut, normalize: src.normalize,
+        subs,
+        watermark: structuredClone(src.watermark),
+        cover: { ...cc, template: sc.template, color: sc.color, accent: sc.accent, logo: sc.logo, textSize: sc.textSize },
+      };
+    });
+    set({ project: { ...project, clips } });
+    toast(`Gaya dari klip ini sudah diterapkan ke ${clips.length - 1} klip lain.`, 'ok');
+  },
 }));

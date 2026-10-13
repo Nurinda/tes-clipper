@@ -50,7 +50,7 @@ export default function ExportPanel({ clip }: { clip: Clip }) {
         )}
         <div className="space-y-2">
           <Toggle checked={o.srt} onChange={(v) => set({ srt: v })} label="Sertakan berkas subtitle (.srt)" />
-          <Toggle checked={o.thumb} onChange={(v) => set({ thumb: v })} label="Sertakan gambar sampul (.jpg)" />
+          <Toggle checked={o.thumb} onChange={(v) => set({ thumb: v })} label="Sertakan sampul bergaya kumparan (.jpg)" />
           <Toggle checked={o.meta} onChange={(v) => set({ meta: v })} label="Sertakan judul dan deskripsi (.txt)" />
         </div>
       </div>

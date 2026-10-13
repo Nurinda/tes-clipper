@@ -36,3 +36,18 @@ Tulis seperti manusia: lugas, wajar, tidak lebay, tanpa emoji, tanpa huruf kapit
     hashtags: res.hashtags.map((h) => h.replace(/^#+/, '').replace(/\s+/g, '')).filter(Boolean).slice(0, 6),
   };
 }
+
+const COVER_SCHEMA = {
+  name: 'teks_sampul',
+  schema: { type: 'object', additionalProperties: false, required: ['text'], properties: { text: { type: 'string' } } },
+};
+
+/** Teks pendek dan kuat untuk gambar sampul (maksimal 6 kata). */
+export async function rewriteCoverText(key: string, model: string, tr: Transcript, clip: Clip, lang: string): Promise<string> {
+  const text = clipText(tr, clip);
+  if (!text.trim()) throw new Error('Tidak ada ucapan di rentang klip ini.');
+  const bahasa = lang === 'auto' ? 'bahasa yang sama dengan transkrip' : lang === 'id' ? 'bahasa Indonesia' : `bahasa dengan kode "${lang}"`;
+  const sys = `Kamu desainer sampul video di media daring. Tulis satu teks sampul dalam ${bahasa}: singkat (3 sampai 6 kata), jelas, dan membuat orang ingin menonton, tapi tetap jujur terhadap isi klip. Tanpa emoji, tanpa tanda seru berlebihan, tanpa kata klise seperti "wajib tonton" atau "viral". Balas hanya JSON.`;
+  const res = await chatJson<{ text: string }>(key, model, sys, `Judul klip: ${clip.title}\nTranskrip:\n${text}`, COVER_SCHEMA);
+  return res.text.trim().replace(/^["“]|["”]$/g, '');
+}

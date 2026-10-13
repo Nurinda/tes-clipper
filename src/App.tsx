@@ -16,6 +16,16 @@ export default function App() {
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'gelap'); }, [theme]);
   useEffect(() => { onFfmpegStatus((m) => useApp.getState().setFfStatus(m)); return () => onFfmpegStatus(null); }, []);
 
+  // peringatkan kalau tab ditutup saat analisis atau ekspor masih berjalan
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => {
+      const s = useApp.getState();
+      if ((s.view === 'analisis' && !s.analyzeError) || s.exporting) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, []);
+
   // simpan proyek otomatis setiap ada perubahan
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, AudioLines, Copy, FileVideo, Film, Frame, Info, Pause, Play, Plus, Redo2, Scissors, SkipBack, SkipForward,
-  Subtitles, Trash2, Type, Undo2, Wand2, Download, ScrollText,
+  Subtitles, Trash2, Type, Undo2, Wand2, Download, ScrollText, Image as ImageIcon, Palette,
 } from 'lucide-react';
 import { useApp, usePlayhead, useSettings } from '../store';
 import type { Clip } from '../types';
@@ -11,14 +11,17 @@ import { InfoPanel, FramePanel, AudioPanel } from '../components/panels/Edit';
 import { SubtitlePanel, TextPanel } from '../components/panels/Text';
 import TranscriptPanel from '../components/panels/Transcript';
 import ExportPanel from '../components/panels/Export';
+import CoverPanel from '../components/panels/Cover';
+import CoverThumb from '../components/CoverThumb';
 import { Seg } from '../components/ui';
 import { fmtDur, fmtTime } from '../lib/utils';
 import { seek, togglePlay } from '../lib/player';
 import { meanEnergy } from '../lib/audio';
 
-type Tab = 'info' | 'bingkai' | 'subtitle' | 'teks' | 'audio' | 'transkrip' | 'ekspor';
+type Tab = 'info' | 'sampul' | 'bingkai' | 'subtitle' | 'teks' | 'audio' | 'transkrip' | 'ekspor';
 const TABS: { id: Tab; label: string; icon: typeof Info }[] = [
   { id: 'info', label: 'Info', icon: Info },
+  { id: 'sampul', label: 'Sampul', icon: ImageIcon },
   { id: 'bingkai', label: 'Bingkai', icon: Frame },
   { id: 'subtitle', label: 'Subtitle', icon: Subtitles },
   { id: 'teks', label: 'Teks', icon: Type },
@@ -49,7 +52,7 @@ function trimSilence(clip: Clip, energy: NonNullable<ReturnType<typeof useApp.ge
 export default function ProjectPage() {
   const {
     project, selectedId, select, needFile, attachFile, removeClip, duplicateClip, splitClip, addClip, updateClip,
-    undo, redo, past, future, renameProject, closeProject,
+    undo, redo, past, future, renameProject, closeProject, coverBusy, applyStyleToAll,
   } = useApp();
   const defaults = useSettings((s) => s.defaults);
   const playing = usePlayhead((s) => s.playing);
@@ -131,7 +134,10 @@ export default function ProjectPage() {
                     }`}
                   >
                     <button className="flex min-w-0 flex-1 items-start gap-2.5 text-left" onClick={() => select(c.id)} aria-current={c.id === selectedId}>
-                      <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-extrabold ${scoreTone(c.score)}`} title="Skor potensi">{c.score}</span>
+                      <span className="relative shrink-0">
+                        <CoverThumb clip={c} width={46} />
+                        <span className={`absolute -bottom-1 -right-1 grid h-6 min-w-6 place-items-center rounded-full px-1 text-[10px] font-extrabold ring-2 ring-surface ${scoreTone(c.score)}`} title="Skor potensi">{c.score}</span>
+                      </span>
                       <span className="min-w-0">
                         <span className="line-clamp-2 text-sm font-bold leading-snug">{c.title || `Klip ${i + 1}`}</span>
                         <span className="mt-0.5 block text-xs tabular-nums text-mute">{fmtTime(c.start)} – {fmtTime(c.end)} · {fmtDur(c.end - c.start)}</span>
@@ -145,8 +151,15 @@ export default function ProjectPage() {
                 </li>
               ))}
             </ul>
+            {coverBusy && <p className="mt-2 px-1 text-xs text-mute">Memilih sampul terbaik… {coverBusy.done}/{coverBusy.total}</p>}
+            {project.clips.length > 1 && clip && (
+              <button
+                className="btn btn-soft btn-sm mt-3 w-full"
+                onClick={() => { if (confirm('Samakan gaya (rasio, subtitle, logo, warna, sampul) dari klip yang sedang dipilih ke semua klip lain?')) applyStyleToAll(clip.id); }}
+              ><Palette size={14} /> Samakan gaya ke semua klip</button>
+            )}
             {project.clips.length > 0 && (
-              <button className="btn btn-primary mt-3 w-full" onClick={() => { setTab('ekspor'); if (!selectedId) select(project.clips[0].id); }}>
+              <button className="btn btn-primary mt-2 w-full" onClick={() => { setTab('ekspor'); if (!selectedId) select(project.clips[0].id); }}>
                 <Download size={16} /> Ekspor klip
               </button>
             )}
@@ -216,6 +229,7 @@ export default function ProjectPage() {
               {clip ? (
                 <>
                   {tab === 'info' && <InfoPanel clip={clip} />}
+                  {tab === 'sampul' && <CoverPanel clip={clip} />}
                   {tab === 'bingkai' && <FramePanel clip={clip} />}
                   {tab === 'subtitle' && <SubtitlePanel clip={clip} />}
                   {tab === 'teks' && <TextPanel clip={clip} />}

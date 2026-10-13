@@ -14,6 +14,13 @@ Semua pemrosesan video berjalan **di browser** (ffmpeg WebAssembly), jadi tidak 
 - Mode tanpa AI: klip dipilih dari bagian dengan suara paling hidup
 - Pengaturan durasi target, jumlah klip, jenis tayangan, dan bahasa
 
+**Sampul otomatis**
+- Tiap klip otomatis dapat sampul: beberapa frame dinilai dari ketajaman, cahaya, warna, dan wajah (kalau browser mendukung), lalu yang terbaik dipilih
+- Tiga template bergaya kumparan (judul bawah, kotak teal, tanpa teks) dengan logo, teks, dan warna yang bisa diubah
+- Teks sampul bisa ditulis dengan AI, frame bisa diganti manual
+- Unduh JPG atau PNG, atau ikut masuk ke ZIP hasil ekspor
+- "Samakan gaya ke semua klip" menyalin rasio, subtitle, logo, warna, dan sampul ke klip lain
+
 **Editor**
 - Timeline dengan gelombang suara, geser titik mulai/selesai, zoom, bagi klip, rapikan jeda
 - Rasio 9:16, 1:1, 4:5, 16:9, atau asli. Isi bingkai: latar blur, potong (bisa digeser), atau bar hitam

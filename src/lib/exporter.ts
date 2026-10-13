@@ -4,6 +4,7 @@ import { buildCopyArgs, buildRenderArgs, outputSize, type ExportOptions } from '
 import { cancelFFmpeg, ensureDir, exec, runExclusive, safeDelete, withMountedFile } from './ffmpeg';
 import { FONT_FILES, hasAssContent, toAss, toSrt } from './subtitles';
 import { slug } from './utils';
+import { renderCoverBlob } from './cover';
 
 /** Musik latar disimpan di memori saja (tidak ikut tersimpan di proyek). */
 export const musicFiles = new Map<string, File>();
@@ -87,50 +88,6 @@ export async function renderClip(a: RenderArgs): Promise<Blob> {
   }
 }
 
-/** Gambar sampul JPG dari video, dengan bingkai yang sama seperti hasil ekspor. */
-export async function makeThumbnail(file: File, clip: Clip, W: number, H: number): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  const v = document.createElement('video');
-  v.muted = true;
-  v.preload = 'auto';
-  v.src = url;
-  try {
-    await new Promise<void>((res, rej) => {
-      v.onloadeddata = () => res();
-      v.onerror = () => rej(new Error('Video tidak bisa dibaca untuk membuat sampul.'));
-    });
-    const t = clip.start + Math.min(1.5, (clip.end - clip.start) * 0.15);
-    v.currentTime = t;
-    await new Promise<void>((res) => { v.onseeked = () => res(); });
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const ctx = c.getContext('2d')!;
-    const sw = v.videoWidth, sh = v.videoHeight;
-    if (clip.fit === 'crop' || clip.aspect === 'asli') {
-      const sr = sw / sh, tr = W / H;
-      let cw = sw, ch = sh;
-      if (sr > tr) cw = sh * tr; else ch = sw / tr;
-      ctx.drawImage(v, (sw - cw) * clip.posX, (sh - ch) * clip.posY, cw, ch, 0, 0, W, H);
-    } else {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-      if (clip.fit === 'blur') {
-        const sr = sw / sh, tr = W / H;
-        let cw = sw, ch = sh;
-        if (sr > tr) cw = sh * tr; else ch = sw / tr;
-        ctx.filter = 'blur(24px)';
-        ctx.drawImage(v, (sw - cw) / 2, (sh - ch) / 2, cw, ch, -30, -30, W + 60, H + 60);
-        ctx.filter = 'none';
-      }
-      const k = Math.min(W / sw, H / sh);
-      ctx.drawImage(v, (W - sw * k) / 2, (H - sh * k) / 2, sw * k, sh * k);
-    }
-    return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Gagal membuat sampul'))), 'image/jpeg', 0.9));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 export function metaText(clip: Clip): string {
   return [
     clip.title,
@@ -161,8 +118,8 @@ export async function exportOne(
   if (opts.meta) files.push({ name: `${base}.txt`, blob: new Blob([metaText(clip)], { type: 'text/plain' }) });
   if (opts.thumb) {
     try {
-      const [W, H] = outputSize(clip.aspect, Math.min(opts.res, 720), a.srcW, a.srcH);
-      files.push({ name: `${base}.jpg`, blob: await makeThumbnail(a.file, clip, W, H) });
+      const [W, H] = outputSize(clip.aspect, 1080, a.srcW, a.srcH);
+      files.push({ name: `${base}-sampul.jpg`, blob: await renderCoverBlob(a.file, clip, W, H) });
     } catch { /* sampul opsional */ }
   }
   return { name: base, files };

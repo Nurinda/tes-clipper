@@ -47,6 +47,19 @@ export interface Watermark {
   opacity: number;     // 0..1
 }
 
+export type CoverTemplate = 'bawah' | 'kotak' | 'minimal';
+export interface CoverSettings {
+  time: number | null;   // detik di video sumber; null = belum dipilih otomatis
+  focusX: number;
+  focusY: number;
+  template: CoverTemplate;
+  text: string | null;   // null = otomatis dari teks pembuka / judul
+  color: string;
+  accent: string;
+  logo: boolean;
+  textSize: number;      // pengali ukuran huruf
+}
+
 export interface Clip {
   id: string;
   title: string;
@@ -76,6 +89,7 @@ export interface Clip {
   subs: SubSettings;
   overlays: TextOverlay[];
   watermark: Watermark;
+  cover?: CoverSettings;
 }
 
 export interface EnergyData {

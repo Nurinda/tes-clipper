@@ -1,5 +1,10 @@
-import type { Clip, Aspect, Fit } from '../types';
+import type { Clip, Aspect, Fit, CoverSettings } from '../types';
 import { uid } from './utils';
+
+export const DEFAULT_COVER: CoverSettings = {
+  time: null, focusX: 0.5, focusY: 0.4, template: 'bawah', text: null,
+  color: '#FFFFFF', accent: '#FFD60A', logo: true, textSize: 1,
+};
 
 export interface ClipDefaults { aspect: Aspect; fit: Fit }
 
@@ -51,6 +56,7 @@ export function makeClip(
     },
     overlays: [],
     watermark: { enabled: false, source: 'kumparan-putih', corner: 'ka', size: 18, opacity: 0.9 },
+    cover: { ...DEFAULT_COVER },
     ...extra,
   };
 }
